@@ -1,0 +1,22 @@
+name: Decompresser les paquets
+on:
+  push:
+    branches: [master]
+    paths: ["*.zip"]
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  unzip:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: |
+          for f in [1-4]-*.zip; do unzip -o "$f" -x ".github/*"; done
+          git rm -q --cached [1-4]-*.zip
+          rm -f [1-4]-*.zip
+          git config user.name "medalis"
+          git config user.email "medalis@users.noreply.github.com"
+          git add -A
+          git commit -m "Ajout des dossiers apps, packages, deploy"
+          git push
