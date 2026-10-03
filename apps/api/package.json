@@ -1,0 +1,58 @@
+{
+  "name": "@nidaa/api",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Nidaa — API NestJS (back-office, écran, public)",
+  "main": "dist/main.js",
+  "scripts": {
+    "build": "nest build",
+    "dev": "nest start --watch",
+    "start": "node dist/main.js",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run",
+    "prisma:generate": "node scripts/with-direct-url.mjs prisma generate",
+    "prisma:migrate": "node scripts/with-direct-url.mjs prisma migrate dev --name init",
+    "prisma:deploy": "node scripts/with-direct-url.mjs prisma migrate deploy",
+    "prisma:seed": "tsx prisma/seed.ts",
+    "clean": "rm -rf dist",
+    "prisma:seed-content": "tsx prisma/seed-content.ts",
+    "prisma:create-admin": "tsx prisma/create-super-admin.ts"
+  },
+  "prisma": {
+    "seed": "tsx prisma/seed.ts"
+  },
+  "dependencies": {
+    "@nestjs/common": "^11.1.6",
+    "@nestjs/config": "^4.0.2",
+    "@nestjs/core": "^11.1.6",
+    "@nestjs/jwt": "^11.0.0",
+    "@nestjs/passport": "^11.0.5",
+    "@nestjs/platform-express": "^11.1.6",
+    "@nestjs/swagger": "^11.2.0",
+    "@nestjs/throttler": "^6.7.1",
+    "@nidaa/prayer-engine": "workspace:*",
+    "@nidaa/shared": "workspace:*",
+    "@prisma/adapter-pg": "^6.19.3",
+    "@prisma/client": "^6.19.0",
+    "argon2": "^0.44.0",
+    "helmet": "^8.1.0",
+    "ioredis": "^5.8.0",
+    "passport": "^0.7.0",
+    "passport-jwt": "^4.0.1",
+    "pg": "^8.23.1",
+    "prisma": "^6.19.0",
+    "reflect-metadata": "^0.2.2",
+    "rxjs": "^7.8.2",
+    "tsx": "^4.20.5",
+    "zod": "^3.24.1"
+  },
+  "devDependencies": {
+    "@nestjs/cli": "^11.0.10",
+    "@types/express": "^5.0.3",
+    "@types/node": "^22.18.0",
+    "@types/passport-jwt": "^4.0.1",
+    "@types/pg": "^8.23.1",
+    "typescript": "^5.9.3",
+    "vitest": "^3.2.4"
+  }
+}

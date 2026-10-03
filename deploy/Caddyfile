@@ -1,0 +1,60 @@
+# Nidaa — reverse proxy HTTPS (certificats Let's Encrypt automatiques).
+# Les domaines et l'adresse ACME viennent de deploy/.env (transmis au conteneur par docker-compose.prod.yml).
+{
+	email {$ACME_EMAIL}
+}
+
+(commun) {
+	encode zstd gzip
+	header {
+		Strict-Transport-Security "max-age=31536000; includeSubDomains"
+		X-Content-Type-Options "nosniff"
+		Referrer-Policy "strict-origin-when-cross-origin"
+		-Server
+		-X-Powered-By
+	}
+}
+
+# --- API : REST + flux SSE (écrans, site public, widget) ---
+{$DOMAIN_API} {
+	import commun
+	reverse_proxy api:4000 {
+		# SSE : aucun tampon, écriture immédiate de chaque événement ; connexions longues tolérées
+		# (l'API envoie un « ping » toutes les 25 s, bien en deçà du délai de lecture).
+		flush_interval -1
+		transport http {
+			read_timeout 1h
+			keepalive 2m
+		}
+	}
+}
+
+# --- Back-office ---
+{$DOMAIN_ADMIN} {
+	import commun
+	header {
+		X-Frame-Options "DENY"
+		Content-Security-Policy "frame-ancestors 'none'"
+		Permissions-Policy "geolocation=(self), camera=(), microphone=(), payment=()"
+		X-Robots-Tag "noindex, nofollow"
+	}
+	reverse_proxy admin:3000
+}
+
+# --- Site public (les en-têtes d'encadrement sont posés par l'application : le widget /m/:slug/embed doit rester intégrable partout) ---
+{$DOMAIN_WEB} {
+	import commun
+	header Permissions-Policy "geolocation=(self), camera=(), microphone=(), payment=()"
+	reverse_proxy web:3001
+}
+
+www.{$DOMAIN_WEB} {
+	redir https://{$DOMAIN_WEB}{uri} permanent
+}
+
+# --- Écran TV (PWA statique ; les en-têtes de cache sont posés par le conteneur « screen ») ---
+{$DOMAIN_SCREEN} {
+	import commun
+	header X-Robots-Tag "noindex, nofollow"
+	reverse_proxy screen:8080
+}

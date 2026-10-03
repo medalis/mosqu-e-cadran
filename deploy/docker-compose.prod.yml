@@ -1,0 +1,133 @@
+# Nidaa — pilote sur un seul serveur (une VM Linux avec Docker). Voir deploy/README.md.
+# À lancer depuis le dossier deploy/, où se trouve le fichier .env (copie de .env.prod.example) :
+#   docker compose -f docker-compose.prod.yml up -d --build
+name: nidaa
+
+x-defaults: &defaults
+  restart: unless-stopped
+  logging:
+    driver: json-file
+    options: { max-size: "10m", max-file: "5" }
+
+services:
+  postgres:
+    <<: *defaults
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: nidaa
+      POSTGRES_DB: nidaa
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD manquant dans .env}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U nidaa -d nidaa"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    # Aucun port publié : la base n'est joignable que depuis le réseau interne de la pile.
+
+  redis:
+    <<: *defaults
+    image: redis:7-alpine
+    # Sert uniquement de bus pub/sub pour les événements SSE : aucune persistance nécessaire.
+    command: ["redis-server", "--save", "", "--appendonly", "no", "--maxmemory", "128mb", "--maxmemory-policy", "allkeys-lru"]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  api:
+    <<: *defaults
+    build:
+      context: ..
+      dockerfile: apps/api/Dockerfile
+      args:
+        PRISMA_OFFLINE: ${PRISMA_OFFLINE:-}
+    environment:
+      NODE_ENV: production
+      PORT: "4000"
+      # Le mot de passe est inséré tel quel dans l'URL : le générer en hexadécimal (voir README).
+      DATABASE_URL: postgresql://nidaa:${POSTGRES_PASSWORD}@postgres:5432/nidaa
+      REDIS_URL: redis://redis:6379
+      JWT_SECRET: ${JWT_SECRET:?JWT_SECRET manquant dans .env}
+      JWT_ACCESS_TTL: ${JWT_ACCESS_TTL:-15m}
+      JWT_REFRESH_TTL: ${JWT_REFRESH_TTL:-30d}
+      CORS_ORIGINS: ${CORS_ORIGINS:?CORS_ORIGINS manquant dans .env}
+      SWAGGER_ENABLED: ${SWAGGER_ENABLED:-false}
+      # Un seul proxy (Caddy) devant l'API : req.ip = dernière adresse de X-Forwarded-For.
+      TRUST_PROXY: "1"
+      PUBLIC_RATE_LIMIT: ${PUBLIC_RATE_LIMIT:-120}
+      INTERNAL_API_TOKEN: ${INTERNAL_API_TOKEN:?INTERNAL_API_TOKEN manquant dans .env}
+      # prisma (défaut) = « prisma migrate deploy » au démarrage ; psql = repli scripts/apply-migrations.sh ; none = rien
+      MIGRATE_MODE: ${MIGRATE_MODE:-prisma}
+      # Photos : « local » = volume api_media, servi par l'API sur /v1/files/* ; « supabase » = Supabase Storage.
+      STORAGE_DRIVER: ${STORAGE_DRIVER:-local}
+      STORAGE_LOCAL_DIR: /data/media
+      PUBLIC_API_URL: https://${DOMAIN_API:?}
+      SUPABASE_URL: ${SUPABASE_URL:-}
+      SUPABASE_SERVICE_ROLE_KEY: ${SUPABASE_SERVICE_ROLE_KEY:-}
+      STORAGE_BUCKET: ${STORAGE_BUCKET:-nidaa-media}
+    volumes:
+      - api_media:/data/media   # photos des mosquées (pilote local) : à sauvegarder
+    depends_on:
+      postgres: { condition: service_healthy }
+      redis: { condition: service_healthy }
+
+  admin:
+    <<: *defaults
+    build:
+      context: ..
+      dockerfile: apps/admin/Dockerfile
+      args:
+        NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:?}
+        NEXT_PUBLIC_SCREEN_URL: ${NEXT_PUBLIC_SCREEN_URL:?}
+    depends_on: [api]
+
+  web:
+    <<: *defaults
+    build:
+      context: ..
+      dockerfile: apps/web/Dockerfile
+      args:
+        NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:?}
+        NEXT_PUBLIC_SITE_URL: ${NEXT_PUBLIC_SITE_URL:?}
+    environment:
+      # Côté serveur, le site appelle l'API par le réseau interne ; le navigateur, lui, utilise NEXT_PUBLIC_API_URL.
+      API_URL: http://api:4000
+      INTERNAL_API_TOKEN: ${INTERNAL_API_TOKEN}
+    depends_on:
+      api: { condition: service_healthy }
+
+  screen:
+    <<: *defaults
+    build:
+      context: ..
+      dockerfile: apps/screen/Dockerfile
+      args:
+        VITE_API_URL: ${NEXT_PUBLIC_API_URL:?}
+
+  caddy:
+    <<: *defaults
+    image: caddy:2-alpine
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp" # HTTP/3
+    environment:
+      DOMAIN_API: ${DOMAIN_API:?}
+      DOMAIN_ADMIN: ${DOMAIN_ADMIN:?}
+      DOMAIN_WEB: ${DOMAIN_WEB:?}
+      DOMAIN_SCREEN: ${DOMAIN_SCREEN:?}
+      ACME_EMAIL: ${ACME_EMAIL:?}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data     # certificats Let's Encrypt : à conserver
+      - caddy_config:/config
+    depends_on: [api, admin, web, screen]
+
+volumes:
+  pgdata:
+  api_media:
+  caddy_data:
+  caddy_config:

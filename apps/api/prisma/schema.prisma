@@ -1,0 +1,285 @@
+generator client {
+  provider        = "prisma-client-js"
+  previewFeatures = ["queryCompiler"]
+  engineType      = "client"
+}
+
+datasource db {
+  provider   = "postgresql"
+  // Exécution : DATABASE_URL (sur Supabase : pooler en mode transaction, port 6543, ?pgbouncer=true).
+  // Migrations : DIRECT_URL (pooler en mode session ou connexion directe, port 5432). En local, les scripts
+  // (scripts/with-direct-url.mjs, scripts/docker-entrypoint.sh) lui donnent la valeur de DATABASE_URL s'il est absent.
+  url        = env("DATABASE_URL")
+  directUrl  = env("DIRECT_URL")
+}
+
+// ---------- Comptes et droits ----------
+model User {
+  id              String    @id @default(uuid())
+  email           String    @unique
+  passwordHash    String
+  fullName        String
+  phone           String?
+  locale          String    @default("fr")
+  isSuperAdmin    Boolean   @default(false)
+  totpSecret      String?
+  emailVerifiedAt DateTime?
+  lastLoginAt     DateTime?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  memberships     MosqueMember[]
+  refreshTokens   RefreshToken[]
+  auditLogs       AuditLog[]
+}
+
+model MosqueMember {
+  id         String   @id @default(uuid())
+  mosqueId   String
+  userId     String
+  role       String   // owner | admin | editor
+  invitedBy  String?
+  acceptedAt DateTime?
+  createdAt  DateTime @default(now())
+  mosque     Mosque   @relation(fields: [mosqueId], references: [id], onDelete: Cascade)
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  @@unique([mosqueId, userId])
+}
+
+model RefreshToken {
+  id        String    @id @default(uuid())
+  userId    String
+  tokenHash String    @unique
+  userAgent String?
+  expiresAt DateTime
+  revokedAt DateTime?
+  createdAt DateTime  @default(now())
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model AuditLog {
+  id          String   @id @default(uuid())
+  mosqueId    String?
+  actorUserId String?
+  action      String
+  entityType  String
+  entityId    String?
+  diff        Json?
+  ip          String?
+  createdAt   DateTime @default(now())
+  mosque      Mosque?  @relation(fields: [mosqueId], references: [id], onDelete: SetNull)
+  actor       User?    @relation(fields: [actorUserId], references: [id], onDelete: SetNull)
+  @@index([mosqueId, createdAt])
+}
+
+// ---------- Mosquée ----------
+model Mosque {
+  id              String   @id @default(uuid())
+  slug            String   @unique
+  name            String
+  nameAr          String?
+  description     String?
+  address         String?
+  city            String
+  countryCode     String   @default("DJ")
+  latitude        Float
+  longitude       Float
+  timezone        String   @default("Africa/Djibouti")
+  phone           String?
+  email           String?
+  website         String?
+  donationUrl     String?
+  services        String[] @default([])
+  status          String   @default("draft") // draft | pending | published | rejected | suspended
+  rejectionReason String?
+  validatedBy     String?
+  validatedAt     DateTime?
+  version         Int      @default(1)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  members         MosqueMember[]
+  media           Media[]
+  prayerConfig    PrayerConfig?
+  iqamaRules      IqamaRule[]
+  jumuaSlots      JumuaSlot[]
+  specialPrayers  SpecialPrayer[]
+  calendarImports CalendarImport[]
+  prayerDays      PrayerDay[]
+  announcements   Announcement[]
+  flashMessage    FlashMessage?
+  screenSettings  ScreenSettings?
+  screenDevices   ScreenDevice[]
+  auditLogs       AuditLog[]
+  @@index([city])
+  @@index([status])
+}
+
+model Media {
+  id         String   @id @default(uuid())
+  mosqueId   String
+  kind       String   // photo | announcement_image | video | audio
+  url        String
+  mime       String?
+  size       Int?
+  width      Int?
+  height     Int?
+  position   Int      @default(0)
+  createdAt  DateTime @default(now())
+  mosque     Mosque   @relation(fields: [mosqueId], references: [id], onDelete: Cascade)
+}
+
+// ---------- Horaires ----------
+model PrayerConfig {
+  id               String  @id @default(uuid())
+  mosqueId         String  @unique
+  source           String  @default("calculated") // calculated | calendar
+  method           String  @default("MWL")
+  fajrAngle        Float?
+  ishaAngle        Float?
+  ishaIntervalMin  Int?
+  asrMadhhab       String  @default("shafi")
+  highLatitudeRule String  @default("MiddleOfTheNight")
+  adjustments      Json    @default("{}")
+  hijriOffsetDays  Int     @default(0)
+  updatedAt        DateTime @updatedAt
+  mosque           Mosque  @relation(fields: [mosqueId], references: [id], onDelete: Cascade)
+}
+
+model IqamaRule {
+  id        String  @id @default(uuid())
+  mosqueId  String
+  prayer    String  // fajr | dhuhr | asr | maghrib | isha
+  mode      String  // delay | fixed
+  delayMin  Int?
+  fixedTime String? // HH:MM
+  validFrom DateTime?
+  validTo   DateTime?
+  mosque    Mosque  @relation(fields: [mosqueId], references: [id], onDelete: Cascade)
+  @@index([mosqueId])
+}
+
+model JumuaSlot {
+  id         String  @id @default(uuid())
+  mosqueId   String
+  khutbaTime String
+  prayerTime String
+  language   String?
+  position   Int     @default(0)
+  mosque     Mosque  @relation(fields: [mosqueId], references: [id], onDelete: Cascade)
+}
+
+model SpecialPrayer {
+  id           String  @id @default(uuid())
+  mosqueId     String
+  kind         String  // eid_fitr | eid_adha | tarawih | other
+  label        String
+  date         String  // YYYY-MM-DD
+  time         String  // HH:MM
+  locationNote String?
+  mosque       Mosque  @relation(fields: [mosqueId], references: [id], onDelete: Cascade)
+}
+
+model CalendarImport {
+  id         String   @id @default(uuid())
+  mosqueId   String
+  year       Int
+  fileName   String?
+  rowsCount  Int
+  status     String   // ok | partial | failed
+  errors     Json?
+  importedBy String?
+  createdAt  DateTime @default(now())
+  mosque     Mosque   @relation(fields: [mosqueId], references: [id], onDelete: Cascade)
+}
+
+/// Horaires résolus : la seule table lue par l'écran, la page publique et l'application.
+model PrayerDay {
+  id           String  @id @default(uuid())
+  mosqueId     String
+  date         String  // YYYY-MM-DD (jour civil local)
+  fajr         String
+  shuruq       String
+  dhuhr        String
+  asr          String
+  maghrib      String
+  isha         String
+  iqamaFajr    String
+  iqamaDhuhr   String
+  iqamaAsr     String
+  iqamaMaghrib String
+  iqamaIsha    String
+  hijriDay     Int
+  hijriMonth   Int
+  hijriYear    Int
+  source       String  // calculated | calendar | override
+  mosque       Mosque  @relation(fields: [mosqueId], references: [id], onDelete: Cascade)
+  @@unique([mosqueId, date])
+}
+
+// ---------- Communication et écran ----------
+model Announcement {
+  id          String    @id @default(uuid())
+  mosqueId    String
+  type        String    @default("text") // text | image | video
+  title       String
+  body        String?
+  mediaUrl    String?
+  startsAt    DateTime?
+  endsAt      DateTime?
+  durationSec Int       @default(10)
+  position    Int       @default(0)
+  targets     String[]  @default(["screen", "web"])
+  isActive    Boolean   @default(true)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  mosque      Mosque    @relation(fields: [mosqueId], references: [id], onDelete: Cascade)
+  @@index([mosqueId, isActive])
+}
+
+model FlashMessage {
+  id        String    @id @default(uuid())
+  mosqueId  String    @unique
+  text      String
+  startsAt  DateTime?
+  endsAt    DateTime?
+  isActive  Boolean   @default(true)
+  updatedAt DateTime  @updatedAt
+  mosque    Mosque    @relation(fields: [mosqueId], references: [id], onDelete: Cascade)
+}
+
+model ScreenSettings {
+  id        String   @id @default(uuid())
+  mosqueId  String   @unique
+  settings  Json     // ScreenSettings (@nidaa/shared)
+  updatedAt DateTime @updatedAt
+  mosque    Mosque   @relation(fields: [mosqueId], references: [id], onDelete: Cascade)
+}
+
+model ScreenDevice {
+  id                  String    @id @default(uuid())
+  mosqueId            String?
+  name                String?
+  pairingCode         String?   @unique
+  pairingExpiresAt    DateTime?
+  deviceTokenHash     String?   @unique
+  pairedAt            DateTime?
+  lastSeenAt          DateTime?
+  appVersion          String?
+  clockDriftMs        Int?
+  bundleVersion       Int?
+  orientationOverride String?
+  createdAt           DateTime  @default(now())
+  mosque              Mosque?   @relation(fields: [mosqueId], references: [id], onDelete: Cascade)
+}
+
+/// Bibliothèque commune de hadiths, versets, invocations et adhkar (gérée par la plateforme).
+model ContentItem {
+  id        String  @id @default(uuid())
+  kind      String  // hadith | ayah | dua | dhikr
+  textAr    String
+  textFr    String?
+  textEn    String?
+  reference String?
+  context   String  // after_adhan | after_prayer | rotation
+  isActive  Boolean @default(true)
+}

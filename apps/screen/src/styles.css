@@ -1,0 +1,180 @@
+/* Nidaa — écran de salle de prière. Layout : en-tête · horloge et prochaine prière · arc du jour avec les 6 cartes · contenus · bandeau.
+   Six thèmes assortis aux peintures des salles ; chaque thème redéfinit uniquement les jetons de couleur. */
+:root{
+  --bg:#070b16; --bg2:#0e1529; --bg3:#17254a; --panel:rgba(255,255,255,.035); --panel2:rgba(255,255,255,.07); --line:rgba(255,255,255,.09);
+  --fg:#f3efe4; --muted:#9aa3b8; --gold:#d8b46a; --gold2:#f1d9a3; --teal:#49c7b5; --black:#000; --on-ink:rgba(255,255,255,.25);
+  --f-display:"Outfit",system-ui,sans-serif; --f-ar:"Amiri","Noto Naskh Arabic",serif;
+  color-scheme:dark;
+}
+[data-mosque-theme="emeraude"]{--bg:#061410;--bg2:#0b2119;--bg3:#12402f;--fg:#f1f5ec;--muted:#93b0a0;--gold:#d2b063;--gold2:#efdaa0;--teal:#7bd7a2}
+[data-mosque-theme="bordeaux"]{--bg:#140608;--bg2:#220b10;--bg3:#4a1620;--fg:#f6ede6;--muted:#b89a93;--gold:#dcb46d;--gold2:#f3dfa8;--teal:#e8a27c}
+[data-mosque-theme="ottoman"]{--bg:#051323;--bg2:#0a2340;--bg3:#0f3f70;--fg:#f2f6fb;--muted:#8fa9c4;--gold:#e5c37a;--gold2:#f6e3b0;--teal:#5fd3e6}
+[data-mosque-theme="sable"]{--bg:#17110a;--bg2:#241a10;--bg3:#4a351c;--fg:#f8f1e4;--muted:#b7a48a;--gold:#e0b26a;--gold2:#f4dcae;--teal:#c7a26a}
+[data-mosque-theme="ivoire"]{--bg:#f4efe4;--bg2:#ece4d3;--bg3:#d8cbb0;--panel:rgba(60,40,10,.045);--panel2:rgba(60,40,10,.09);--line:rgba(60,40,10,.14);--fg:#2a2218;--muted:#7a6a52;--gold:#9a7a2f;--gold2:#7a5c16;--teal:#2c8c80;--black:#111;--on-ink:rgba(0,0,0,.2);color-scheme:light}
+[data-mosque-theme="ivoire"] .pattern{opacity:.1}
+[data-mosque-theme="ivoire"] .glow{opacity:.25}
+
+*{box-sizing:border-box}
+html,body,#root{height:100%;margin:0}
+body{background:var(--bg);color:var(--fg);font-family:var(--f-display);overflow:hidden;font-variant-numeric:tabular-nums;-webkit-font-smoothing:antialiased;transition:background 1.2s,color 1.2s;cursor:none}
+body.show-ui{cursor:auto}
+
+/* ---------- fond ---------- */
+.sky{position:fixed;inset:0;background:radial-gradient(120% 90% at 50% 115%,var(--bg3) 0%,var(--bg2) 42%,var(--bg) 100%);transition:background 1.2s}
+.pattern{position:fixed;inset:-12%;opacity:.07;
+  background-image:linear-gradient(30deg,var(--gold) 1px,transparent 1px),linear-gradient(150deg,var(--gold) 1px,transparent 1px),linear-gradient(90deg,var(--gold) 1px,transparent 1px);
+  background-size:120px 208px;animation:drift 120s linear infinite}
+@keyframes drift{to{transform:translate(120px,208px)}}
+.glow{position:fixed;width:60vmax;height:60vmax;border-radius:50%;filter:blur(100px);opacity:.16;pointer-events:none;animation:breathe 16s ease-in-out infinite}
+.glow.a{background:var(--gold);left:-22vmax;top:-32vmax}
+.glow.b{background:var(--teal);right:-26vmax;bottom:-36vmax;animation-delay:-8s}
+@keyframes breathe{0%,100%{transform:scale(1) translate(0,0)}50%{transform:scale(1.15) translate(2vmax,1vmax)}}
+
+/* ---------- scène ---------- */
+.scene{position:relative;height:100%;display:grid;grid-template-rows:auto 1fr auto auto auto;padding:clamp(14px,2.6vmin,36px) clamp(16px,4vmin,60px);gap:clamp(10px,2vmin,28px)}
+
+header{display:grid;grid-template-columns:1fr auto;align-items:start;gap:16px}
+.brand{display:flex;align-items:center;gap:clamp(10px,1.6vmin,20px)}
+.brand svg{width:clamp(34px,5.2vmin,68px);height:clamp(34px,5.2vmin,68px);flex:none}
+.brand .name{font-size:clamp(17px,2.4vmin,32px);font-weight:500;letter-spacing:.01em;line-height:1.15}
+.brand .name-ar{font-family:var(--f-ar);font-size:clamp(17px,2.4vmin,32px);color:var(--gold2);line-height:1.1}
+.brand .city{color:var(--muted);font-size:clamp(11px,1.35vmin,16px);letter-spacing:.14em;text-transform:uppercase;margin-top:2px}
+.dates{text-align:right;display:flex;flex-direction:column;gap:3px;padding-top:4px}
+.dates .greg{font-size:clamp(13px,1.9vmin,25px);font-weight:400}
+.dates .hijri{font-family:var(--f-ar);font-size:clamp(16px,2.3vmin,30px);color:var(--gold2);line-height:1.15}
+
+/* ---------- héros ---------- */
+.hero{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:clamp(4px,1vmin,14px);min-height:0}
+.clock{font-weight:200;font-size:clamp(56px,15vmin,210px);line-height:.95;letter-spacing:-.03em;display:flex;align-items:baseline}
+.clock .colon{animation:blink 2s steps(1) infinite;opacity:1}
+@keyframes blink{50%{opacity:.25}}
+.clock small{font-size:.3em;color:var(--muted);font-weight:300;margin-left:.12em}
+.nextline{display:flex;align-items:center;gap:clamp(10px,1.6vmin,22px);padding:clamp(6px,1vmin,12px) clamp(14px,2.4vmin,30px);border:1px solid var(--line);border-radius:999px;background:var(--panel);position:relative;overflow:hidden}
+.nextline::after{content:"";position:absolute;inset:0;background:linear-gradient(100deg,transparent 30%,var(--panel2) 50%,transparent 70%);transform:translateX(-100%);animation:sheen 8s ease-in-out infinite;pointer-events:none}
+@keyframes sheen{25%,100%{transform:translateX(100%)}}
+.nextline .lbl{color:var(--muted);text-transform:uppercase;letter-spacing:.16em;font-size:clamp(10px,1.3vmin,15px)}
+.nextline .nm{font-size:clamp(18px,2.8vmin,38px);font-weight:500}
+.nextline .nm .ar{font-family:var(--f-ar);color:var(--gold2);margin-left:.4em}
+.nextline .cd{font-size:clamp(22px,3.6vmin,50px);font-weight:300;letter-spacing:-.02em;color:var(--gold2)}
+.nextline .sep{width:1px;height:1.6em;background:var(--line)}
+.ring{width:clamp(30px,4.4vmin,60px);height:clamp(30px,4.4vmin,60px);flex:none}
+.ring circle{fill:none;stroke-width:4;stroke-linecap:round}
+.ring .tr{stroke:var(--line)}
+.ring .pr{stroke:var(--gold);transform:rotate(-90deg);transform-origin:50% 50%;transition:stroke-dashoffset 1s linear}
+
+/* ---------- arc du jour + cartes ---------- */
+.day{display:grid;grid-template-rows:auto auto;gap:0}
+.arc{width:100%;height:clamp(50px,10vmin,130px);display:block;overflow:visible}
+.arc .path{fill:none;stroke:var(--line);stroke-width:1.5}
+.arc .done{fill:none;stroke:var(--gold);stroke-width:1.5;stroke-dasharray:1000;transition:stroke-dashoffset 1s linear;opacity:.8}
+.arc .pt{fill:var(--bg2);stroke:var(--muted);stroke-width:1.5;transition:fill .6s,stroke .6s}
+.arc .pt.past{fill:var(--gold);stroke:var(--gold);opacity:.7}
+.arc .pt.now{fill:var(--gold2);stroke:var(--gold2)}
+.arc .sun{fill:var(--gold2);filter:drop-shadow(0 0 10px var(--gold))}
+.arc .sunhalo{fill:var(--gold);opacity:.25;animation:halo 3s ease-in-out infinite;transform-origin:center;transform-box:fill-box}
+@keyframes halo{50%{transform:scale(1.6);opacity:.08}}
+.prayers{display:grid;grid-template-columns:repeat(6,1fr);gap:clamp(8px,1.4vmin,18px)}
+.card{position:relative;border:1px solid var(--line);border-radius:16px;background:var(--panel);padding:clamp(10px,1.8vmin,24px) 8px clamp(10px,1.6vmin,20px);
+  display:flex;flex-direction:column;align-items:center;gap:clamp(2px,.7vmin,10px);transition:transform .7s cubic-bezier(.2,.8,.2,1),border-color .7s,background .7s,opacity .7s;animation:rise .9s cubic-bezier(.2,.8,.2,1) both}
+.card:nth-child(1){animation-delay:.05s}.card:nth-child(2){animation-delay:.12s}.card:nth-child(3){animation-delay:.19s}.card:nth-child(4){animation-delay:.26s}.card:nth-child(5){animation-delay:.33s}.card:nth-child(6){animation-delay:.4s}
+@keyframes rise{from{opacity:0;transform:translateY(18px)}}
+.card .n{font-size:clamp(11px,1.5vmin,19px);letter-spacing:.14em;text-transform:uppercase;color:var(--muted);font-weight:500}
+.card .ar{font-family:var(--f-ar);font-size:clamp(17px,2.6vmin,36px);line-height:1;color:var(--gold2)}
+.card .t{font-size:clamp(26px,5.6vmin,80px);font-weight:300;line-height:1;letter-spacing:-.03em;margin-top:.1em}
+.card .iq{font-size:clamp(11px,1.4vmin,17px);color:var(--muted);margin-top:.2em}
+.card .iq b{color:var(--fg);font-weight:500}
+.card.past{opacity:.42}
+.card.now{border-color:var(--gold);background:linear-gradient(180deg,var(--panel2),var(--panel));transform:translateY(-6px);box-shadow:0 24px 60px -24px var(--gold)}
+.card.now::before{content:"";position:absolute;inset:-1px;border-radius:16px;border:1px solid var(--gold);opacity:0;animation:pulse 2.8s ease-out infinite}
+@keyframes pulse{0%{opacity:.8;transform:scale(1)}100%{opacity:0;transform:scale(1.06)}}
+.card.now .n{color:var(--gold2)}
+
+/* ---------- contenus ---------- */
+.lower{display:grid;grid-template-columns:minmax(220px,1fr) 2.4fr;gap:clamp(8px,1.4vmin,18px)}
+.tile{border:1px solid var(--line);border-radius:16px;background:var(--panel);padding:clamp(10px,1.8vmin,22px) clamp(14px,2.2vmin,28px);display:flex;flex-direction:column;justify-content:center;gap:5px;min-height:clamp(64px,13vmin,170px);overflow:hidden;position:relative}
+.tile .k{color:var(--muted);text-transform:uppercase;letter-spacing:.16em;font-size:clamp(10px,1.25vmin,14px)}
+.tile .v{font-size:clamp(14px,2.1vmin,28px);font-weight:400;line-height:1.3}
+.tile .v b{font-weight:500;color:var(--gold2)}
+.rot{position:absolute;inset:0;padding:inherit;display:flex;flex-direction:column;justify-content:center;gap:5px;opacity:0;transform:translateY(14px);transition:opacity 1s ease,transform 1s cubic-bezier(.2,.8,.2,1)}
+.rot.on{opacity:1;transform:none}
+.rot .ar{font-family:var(--f-ar);font-size:clamp(16px,2.5vmin,34px);color:var(--gold2);line-height:1.5;direction:rtl;text-align:right}
+.rot .src{color:var(--muted);font-size:clamp(11px,1.3vmin,15px)}
+.rot>*{flex:none}
+.rot .v{max-height:2.6em;overflow:hidden}
+.rot img{max-height:clamp(50px,9vmin,120px);max-width:100%;object-fit:contain;border-radius:8px;align-self:flex-start}
+.dots{position:absolute;right:16px;top:14px;display:flex;gap:6px;z-index:1}
+.dots i{width:6px;height:6px;border-radius:50%;background:var(--line);transition:background .4s,width .4s}
+.dots i.on{background:var(--gold);width:18px}
+
+/* ---------- bandeau ---------- */
+footer{border-top:1px solid var(--line);padding-top:clamp(6px,1.2vmin,16px);display:grid;grid-template-columns:auto 1fr auto;align-items:center;gap:20px;color:var(--muted);font-size:clamp(12px,1.7vmin,22px)}
+footer .tag{color:var(--gold);letter-spacing:.16em;text-transform:uppercase;font-size:.7em;font-weight:500}
+.marquee{overflow:hidden;white-space:nowrap;mask-image:linear-gradient(90deg,transparent,#000 5%,#000 95%,transparent);-webkit-mask-image:linear-gradient(90deg,transparent,#000 5%,#000 95%,transparent);min-width:0}
+.marquee span{display:inline-block;padding-left:100%;animation:scroll 32s linear infinite}
+@keyframes scroll{to{transform:translateX(-100%)}}
+.powered{display:flex;align-items:center;gap:8px;font-size:.7em;letter-spacing:.1em;text-transform:uppercase;opacity:.7}
+.powered svg{width:1.6em;height:1.6em}
+.powered .dot{width:.55em;height:.55em;border-radius:50%;background:var(--teal);box-shadow:0 0 8px var(--teal);transition:background .6s,box-shadow .6s}
+.powered .dot.off{background:#e07b5f;box-shadow:0 0 8px #e07b5f;animation:blink 2s steps(1) infinite}
+
+/* ---------- écrans d'état ---------- */
+.overlay{position:fixed;inset:0;display:grid;place-items:center;text-align:center;background:var(--bg);opacity:0;pointer-events:none;transition:opacity 1.4s ease;z-index:5}
+.overlay.on{opacity:1;pointer-events:auto}
+.overlay .in{display:flex;flex-direction:column;align-items:center;gap:clamp(10px,2vmin,28px);padding:24px;max-width:90vw;transform:scale(.96);transition:transform 1.4s cubic-bezier(.2,.8,.2,1)}
+.overlay.on .in{transform:none}
+.overlay .big{font-size:clamp(40px,10vmin,140px);font-weight:200;letter-spacing:-.03em;line-height:1}
+.overlay .ar{font-family:var(--f-ar);font-size:clamp(30px,7vmin,100px);color:var(--gold2);line-height:1.4;direction:rtl}
+.overlay .sub{color:var(--muted);font-size:clamp(14px,2.2vmin,30px);letter-spacing:.08em}
+.overlay .cd{font-size:clamp(28px,5vmin,70px);font-weight:200;color:var(--gold2)}
+.overlay.black{background:var(--black)}
+.overlay .bigring{width:clamp(120px,22vmin,280px);height:clamp(120px,22vmin,280px)}
+.overlay .bigring circle{stroke-width:2.5}
+.overlay.on .ar.wave{animation:wave 6s ease-in-out infinite}
+@keyframes wave{50%{opacity:.6;letter-spacing:.02em}}
+
+/* ---------- appairage ---------- */
+.pairing{position:relative;height:100%;display:grid;place-items:center;text-align:center;padding:24px}
+.pairing .in{display:flex;flex-direction:column;align-items:center;gap:clamp(12px,2.4vmin,32px);max-width:90vw}
+.pairing svg.logo{width:clamp(70px,14vmin,180px);height:clamp(70px,14vmin,180px)}
+.pairing .title{font-size:clamp(20px,3.2vmin,44px);font-weight:300;letter-spacing:.02em}
+.pairing .title b{font-weight:500}
+.pairing .code{display:flex;gap:clamp(8px,1.6vmin,22px)}
+.pairing .code span{font-size:clamp(60px,16vmin,220px);font-weight:200;line-height:1;letter-spacing:0;color:var(--gold2);min-width:.75em;padding:.08em .05em;border-bottom:3px solid var(--gold);text-align:center;animation:rise .9s cubic-bezier(.2,.8,.2,1) both}
+.pairing .code span:nth-child(2){animation-delay:.07s}.pairing .code span:nth-child(3){animation-delay:.14s}.pairing .code span:nth-child(4){animation-delay:.21s}.pairing .code span:nth-child(5){animation-delay:.28s}.pairing .code span:nth-child(6){animation-delay:.35s}
+.pairing .hint{color:var(--muted);font-size:clamp(14px,2vmin,28px);line-height:1.5;max-width:60ch}
+.pairing .hint b{color:var(--fg);font-weight:500}
+.pairing .status{display:flex;align-items:center;gap:10px;color:var(--muted);font-size:clamp(12px,1.5vmin,20px);letter-spacing:.14em;text-transform:uppercase}
+.pairing .status i{width:.6em;height:.6em;border-radius:50%;background:var(--gold);animation:blink 2s steps(1) infinite}
+.pairing .status i.err{background:#e07b5f;animation:none}
+.pairing .error{color:#e9a08a;font-size:clamp(14px,2vmin,28px);max-width:60ch;line-height:1.5}
+.pairing .expires{color:var(--muted);font-size:clamp(11px,1.3vmin,16px);letter-spacing:.14em;text-transform:uppercase}
+.btn{font:inherit;font-size:clamp(12px,1.5vmin,18px);letter-spacing:.1em;text-transform:uppercase;color:var(--fg);background:var(--panel);border:1px solid var(--line);border-radius:999px;padding:.7em 1.6em;cursor:pointer;transition:border-color .3s,color .3s}
+.btn:hover,.btn:focus-visible{border-color:var(--gold);color:var(--gold2);outline:none}
+.btn.primary{border-color:var(--gold);color:var(--gold2)}
+.pairing .url{color:var(--muted);font-size:clamp(11px,1.2vmin,15px);opacity:.6;letter-spacing:.04em}
+.boot{height:100%;display:grid;place-items:center;color:var(--muted);letter-spacing:.14em;text-transform:uppercase;font-size:clamp(12px,1.6vmin,20px)}
+.boot svg{width:clamp(50px,9vmin,120px);height:clamp(50px,9vmin,120px);margin-bottom:18px;display:block;margin-inline:auto}
+
+/* ---------- commandes (apparaissent au mouvement de la souris) ---------- */
+.demo{position:fixed;left:50%;bottom:14px;transform:translate(-50%,20px);display:flex;gap:6px;flex-wrap:wrap;justify-content:center;z-index:9;opacity:0;pointer-events:none;transition:opacity .35s,transform .35s;padding:8px 12px;border-radius:18px;background:var(--bg2);border:1px solid var(--line);box-shadow:0 20px 60px -20px #000;max-width:min(96vw,1400px)}
+body.show-ui .demo{opacity:1;transform:translate(-50%,0);pointer-events:auto}
+.demo button{font:inherit;font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--fg);background:transparent;border:1px solid var(--line);border-radius:999px;padding:6px 12px;cursor:pointer}
+.demo button:hover,.demo button:focus-visible,.demo button.on{border-color:var(--gold);color:var(--gold2);outline:none}
+.demo button.danger:hover,.demo button.danger:focus-visible{border-color:#e07b5f;color:#e9a08a}
+.demo .gap{width:1px;background:var(--line);margin:0 4px}
+.demo .th{display:inline-flex;align-items:center;gap:6px}
+.demo .th i{width:12px;height:12px;border-radius:50%;background:linear-gradient(135deg,var(--c1) 50%,var(--c2) 50%);border:1px solid var(--on-ink)}
+.demo .lbl{align-self:center;font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:var(--muted);padding:0 4px}
+
+/* ---------- indices ---------- */
+.toast{position:fixed;top:16px;left:50%;transform:translateX(-50%);z-index:8;background:var(--bg2);border:1px solid var(--line);color:var(--fg);border-radius:999px;padding:8px 18px;font-size:clamp(11px,1.3vmin,15px);letter-spacing:.06em;box-shadow:0 20px 60px -20px #000;animation:rise .6s cubic-bezier(.2,.8,.2,1) both;display:flex;align-items:center;gap:10px}
+.toast i{width:8px;height:8px;border-radius:50%;background:var(--gold);flex:none}
+
+@media (max-width:900px){
+  .scene{grid-template-rows:auto auto auto auto auto;overflow:auto}
+  body{overflow:auto}
+  .prayers{grid-template-columns:repeat(3,1fr)}.lower{grid-template-columns:1fr}.arc{display:none}
+  .nextline{flex-wrap:wrap;justify-content:center;border-radius:18px}
+  footer{grid-template-columns:auto 1fr}.powered{display:none}
+}
+@media (prefers-reduced-motion:reduce){*{animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.2s!important}}

@@ -1,0 +1,29 @@
+# Service statique de l'écran (dans le conteneur, derrière le reverse proxy qui porte HTTPS).
+{
+	admin off
+	auto_https off
+}
+
+:8080 {
+	root * /srv
+	encode zstd gzip
+
+	# Fichiers au nom haché par Vite/Workbox : cache d'un an, immuables. Pas de repli SPA ici :
+	# un fichier absent (ancienne version) doit répondre 404 et non index.html.
+	@hashed path /assets/* /workbox-*.js
+	handle @hashed {
+		@existe file
+		header @existe Cache-Control "public, max-age=31536000, immutable"
+		file_server
+	}
+
+	# Tout le reste — index.html, sw.js, manifest.webmanifest, favicon — est revalidé à chaque fois (ETag) :
+	# c'est ce qui permet aux écrans de prendre la nouvelle version dès la mise à jour.
+	handle {
+		@manifeste path /manifest.webmanifest
+		header @manifeste Content-Type "application/manifest+json"
+		header Cache-Control "no-cache"
+		try_files {path} /index.html
+		file_server
+	}
+}
