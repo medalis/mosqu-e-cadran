@@ -1,0 +1,71 @@
+# Render Blueprint — API Nidaa (NestJS) en conteneur Docker. Guide pas à pas : deploy/supabase/README.md
+# La base PostgreSQL et les photos sont chez Supabase ; le back-office, le site et l'écran sont sur Vercel.
+#
+# Pourquoi une instance TOUJOURS ALLUMÉE (offre payante, pas l'offre gratuite qui s'endort) :
+#   - les écrans des mosquées et le site public gardent une connexion SSE ouverte en permanence
+#     (/v1/screen/events, /v1/mosques/:slug/events) ; une instance qui s'endort coupe ces connexions ;
+#   - un démarrage à froid (plusieurs dizaines de secondes) retarderait l'appairage d'un écran et la connexion au
+#     back-office ; les écrans continuent d'afficher leurs horaires en cache, mais ne reçoivent plus les modifications.
+# UNE SEULE instance : les événements temps réel et la limite de débit vivent en mémoire du processus. Pour passer à
+# plusieurs instances, ajouter un Redis (Render Key Value) et définir REDIS_URL.
+#
+# Non testé sur un compte Render réel : vérifier le nom des offres et des régions dans le tableau de bord.
+services:
+  - type: web
+    name: nidaa-api
+    runtime: docker
+    dockerfilePath: ./apps/api/Dockerfile
+    dockerContext: .            # le Dockerfile attend la racine du monorepo comme contexte
+    plan: starter               # première offre sans mise en veille ; ne pas utiliser « free »
+    region: frankfurt           # même région (ou la plus proche) que le projet Supabase
+    numInstances: 1
+    healthCheckPath: /v1/time
+    autoDeploy: true
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: "4000"
+      # --- Base de données Supabase (deux chaînes, voir le guide) ---
+      - key: DATABASE_URL       # pooler en mode transaction, port 6543, avec ?pgbouncer=true
+        sync: false
+      - key: DIRECT_URL         # pooler en mode session (port 5432) : utilisé par les migrations au démarrage
+        sync: false
+      - key: DB_POOL_MAX
+        value: "5"
+      # TLS vers la base : coller le certificat d'autorité de Supabase dans DB_SSL_CA (recommandé),
+      # ou mettre DB_SSL_NO_VERIFY à true (chiffré, mais serveur non authentifié).
+      - key: DB_SSL_CA
+        sync: false
+      - key: DB_SSL_NO_VERIFY
+        value: "false"
+      - key: MIGRATE_MODE       # prisma migrate deploy à chaque démarrage (via DIRECT_URL)
+        value: prisma
+      # --- Photos : Supabase Storage ---
+      - key: STORAGE_DRIVER
+        value: supabase
+      - key: STORAGE_BUCKET
+        value: nidaa-media
+      - key: SUPABASE_URL       # https://<ref>.supabase.co
+        sync: false
+      - key: SUPABASE_SERVICE_ROLE_KEY   # secret serveur : jamais dans une variable NEXT_PUBLIC_* ou VITE_*
+        sync: false
+      # --- Sécurité et accès ---
+      - key: JWT_SECRET
+        generateValue: true
+      - key: INTERNAL_API_TOKEN # à recopier dans le projet Vercel du site public
+        generateValue: true
+      - key: JWT_ACCESS_TTL
+        value: 15m
+      - key: JWT_REFRESH_TTL
+        value: 30d
+      - key: CORS_ORIGINS       # origines du back-office ET de l'écran, séparées par une virgule, sans barre finale
+        sync: false             # ex. https://admin.nidaa.dj,https://ecran.nidaa.dj
+      - key: PUBLIC_API_URL     # ex. https://api.nidaa.dj
+        sync: false
+      - key: SWAGGER_ENABLED
+        value: "false"
+      - key: TRUST_PROXY        # nombre de proxys devant l'API ; à vérifier (voir le guide, « Limites »)
+        value: "1"
+      - key: PUBLIC_RATE_LIMIT
+        value: "120"

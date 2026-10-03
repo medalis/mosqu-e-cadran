@@ -1,0 +1,26 @@
+# Contexte de build Docker = racine du monorepo. Tout ce qui est reconstruit dans l'image ou secret reste dehors.
+.git
+.github
+.turbo
+**/.turbo
+node_modules
+**/node_modules
+**/dist
+**/.next
+**/coverage
+**/*.tsbuildinfo
+**/*.log
+# Secrets et configuration locale : jamais dans une image
+**/.env
+**/.env.*
+!**/.env.example
+!**/.env*.example
+# Hors images
+e2e
+deploy
+**/Dockerfile
+*.md
+**/build
+**/.gradle
+# Photos du pilote de stockage local (développement)
+apps/api/storage
